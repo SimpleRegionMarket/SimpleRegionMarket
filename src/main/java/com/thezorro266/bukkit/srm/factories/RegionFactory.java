@@ -15,7 +15,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 package com.thezorro266.bukkit.srm.factories;
 
 import java.util.ArrayList;
@@ -40,8 +39,10 @@ import com.thezorro266.bukkit.srm.helpers.Location;
 import com.thezorro266.bukkit.srm.helpers.Options;
 import com.thezorro266.bukkit.srm.templates.SignTemplate;
 import com.thezorro266.bukkit.srm.templates.Template;
+import java.util.List;
 
 public class RegionFactory {
+
 	public static final RegionFactory instance = new RegionFactory();
 	@Getter
 	private int regionCount = 0;
@@ -58,13 +59,35 @@ public class RegionFactory {
 			if (regionSet.size() == 1) {
 				protectedRegion = regionSet.iterator().next();
 			} else {
-				System.out.println("More than one region detected at " + loc.toString());
-				// TODO Take child region or region with highest priority
+				List<ProtectedRegion> noparents = new ArrayList<ProtectedRegion>();
+				for (ProtectedRegion reg : regionSet) {
+					if (isParent(regionSet, reg)) {
+						continue;
+					}
+					noparents.add(reg);
+				}
+				if (noparents.size() == 1) {
+					protectedRegion = noparents.get(0);
+				} else {
+					// TODO Take region with highest priority
+					System.out.println("would have selected one of " + noparents);
+				}
 			}
 		} else {
 			protectedRegion = worldRegionManager.getRegion(region);
 		}
 		return protectedRegion;
+	}
+
+	private static boolean isParent(ApplicableRegionSet regionSet, ProtectedRegion reg) {
+		boolean isParent = false;
+		for (ProtectedRegion child : regionSet) {
+			if (reg.equals(child.getParent())) {
+				isParent = true;
+				break;
+			}
+		}
+		return isParent;
 	}
 
 	public Region createRegion(Template template, World world, ProtectedRegion worldguardRegion) {
@@ -137,6 +160,7 @@ public class RegionFactory {
 	}
 
 	public class Region {
+
 		@Getter
 		final Template template;
 		@Getter
