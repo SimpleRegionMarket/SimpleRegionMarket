@@ -22,6 +22,7 @@ import java.lang.ref.WeakReference;
 import java.util.Set;
 import java.util.UUID;
 import java.util.WeakHashMap;
+import org.bukkit.BanList;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
@@ -41,7 +42,7 @@ import com.thezorro266.bukkit.srm.factories.RegionFactory;
 public class WorldGuardManager {
 	private static final String WORLD_GUARD_PLUGIN_NAME = "WorldGuard"; // NON-NLS
 	private WorldGuardPlugin worldguardPlugin;
-	private WeakHashMap<RegionFactory.Region, WeakReference<WorldGuardOwnable>> ownableMap = new WeakHashMap<RegionFactory.Region, WeakReference<WorldGuardOwnable>>();
+	private WeakHashMap<RegionFactory.Region, WeakReference<WorldGuardOwnable>> ownableMap = new WeakHashMap<>();
 
 	public WorldGuardOwnable getOwnable(RegionFactory.Region region) {
 		WorldGuardOwnable wgo;
@@ -157,8 +158,13 @@ public class WorldGuardManager {
 			Set<String> playerSet = members.getPlayers();
 			list = new OfflinePlayer[playerSet.size()];
 			int index = 0;
-			for (String playerName : playerSet) {
-				list[index] = Bukkit.getOfflinePlayer(playerName);
+			for (String playerId : playerSet) {
+				try {
+					UUID uuid = UUID.fromString(playerId);
+					list[index] = Bukkit.getOfflinePlayer(uuid);
+				} catch (IllegalArgumentException e) {
+					list[index] = Bukkit.getOfflinePlayer(playerId); // Fallback to name
+				}
 				++index;
 			}
 			return list;
@@ -169,8 +175,13 @@ public class WorldGuardManager {
 			Set<String> playerSet = owners.getPlayers();
 			list = new OfflinePlayer[playerSet.size()];
 			int index = 0;
-			for (String playerName : playerSet) {
-				list[index] = Bukkit.getOfflinePlayer(playerName);
+			for (String playerId : playerSet) {
+				try {
+					UUID uuid = UUID.fromString(playerId);
+					list[index] = Bukkit.getOfflinePlayer(uuid);
+				} catch (IllegalArgumentException e) {
+					list[index] = Bukkit.getOfflinePlayer(playerId); // Fallback to name
+				}
 				++index;
 			}
 			return list;
@@ -194,7 +205,8 @@ public class WorldGuardManager {
 
 		@Override
 		public String getName() {
-			return player.getName();
+			String name = player.getName();
+			return name != null ? name : player.getUniqueId().toString();
 		}
 
 		@Override
@@ -227,8 +239,11 @@ public class WorldGuardManager {
 		@Override
 		public void ban(String msg) {
 			if (player.isOnline()) {
-				player.getPlayer().setBanned(true);
-				player.getPlayer().kickPlayer(msg);
+				String playerName = player.getName();
+				if (playerName != null) {
+					Bukkit.getBanList(BanList.Type.NAME).addBan(playerName, msg, null, null);
+					player.getPlayer().kickPlayer(msg);
+				}
 			} else {
 				SimpleRegionMarket.getInstance().getLogger()
 						.warning(LanguageSupport.instance.getString("worldguard.offlineplayer.ban"));
@@ -258,7 +273,7 @@ public class WorldGuardManager {
 			} else {
 				SimpleRegionMarket.getInstance().getLogger()
 						.warning(LanguageSupport.instance.getString("worldguard.offlineplayer.getpermission"));
-				return true;
+				return false; // Deny permissions for offline players by default
 			}
 		}
 
@@ -266,6 +281,5 @@ public class WorldGuardManager {
 		public UUID getUniqueId() {
 			return player.getUniqueId();
 		}
-
 	}
 }
